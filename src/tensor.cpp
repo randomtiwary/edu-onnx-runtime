@@ -3,6 +3,8 @@
 
 #include "eduort/tensor.h"
 
+#include "eduort/macros.h"
+
 #include <limits>
 #include <sstream>
 #include <string>
@@ -18,26 +20,19 @@ Status ValidateShape(const TensorShape& shape) {
                                std::to_string(d) + ")");
     }
   }
-  // Touch NumElementsChecked for overflow.
-  StatusOr<int64_t> n = shape.NumElementsChecked();
-  if (!n.ok()) {
-    return n.status();
-  }
+  // Overflow / negative dims also checked inside NumElementsChecked.
+  EDUORT_RETURN_IF_ERROR(shape.NumElementsChecked().status());
   return Status::OK();
 }
 
 StatusOr<std::size_t> ComputeNBytes(DataType dt, const TensorShape& shape) {
-  StatusOr<int64_t> ne = shape.NumElementsChecked();
-  if (!ne.ok()) {
-    return ne.status();
-  }
+  EDUORT_ASSIGN_OR_RETURN(const int64_t n, shape.NumElementsChecked());
   const std::size_t elem = SizeOfDataType(dt);
   if (elem == 0) {
     return Status::Error(ErrorCode::kInvalidArgument,
                          std::string("unsupported DataType: ") + DataTypeName(dt));
   }
-  // Overflow-safe multiply: ne * elem fits in size_t?
-  const int64_t n = ne.value();
+  // Overflow-safe multiply: n * elem fits in size_t?
   if (n < 0) {
     return Status::Error(ErrorCode::kInvalidArgument, "negative element count");
   }
@@ -143,16 +138,8 @@ StatusOr<Tensor> Tensor::Create(DataType dt, TensorShape shape,
                          "(CUDA allocation lands with the CUDA EP)");
   }
 
-  Status st = ValidateShape(shape);
-  if (!st.ok()) {
-    return st;
-  }
-
-  StatusOr<std::size_t> nbytes_or = ComputeNBytes(dt, shape);
-  if (!nbytes_or.ok()) {
-    return nbytes_or.status();
-  }
-  const std::size_t nbytes = nbytes_or.value();
+  EDUORT_RETURN_IF_ERROR(ValidateShape(shape));
+  EDUORT_ASSIGN_OR_RETURN(const std::size_t nbytes, ComputeNBytes(dt, shape));
 
   IAllocator* alloc = DefaultCpuAllocator();
   void* ptr = nullptr;
@@ -177,16 +164,8 @@ StatusOr<Tensor> Tensor::FromHostBlob(DataType dt, TensorShape shape,
                          "unsupported DataType in Tensor::FromHostBlob");
   }
 
-  Status st = ValidateShape(shape);
-  if (!st.ok()) {
-    return st;
-  }
-
-  StatusOr<std::size_t> nbytes_or = ComputeNBytes(dt, shape);
-  if (!nbytes_or.ok()) {
-    return nbytes_or.status();
-  }
-  const std::size_t nbytes = nbytes_or.value();
+  EDUORT_RETURN_IF_ERROR(ValidateShape(shape));
+  EDUORT_ASSIGN_OR_RETURN(const std::size_t nbytes, ComputeNBytes(dt, shape));
 
   if (bytes != nbytes) {
     return Status::Error(ErrorCode::kInvalidArgument,

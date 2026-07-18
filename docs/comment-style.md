@@ -66,4 +66,26 @@ Feature PRs update the matching chapter under `docs/` in the **same** PR (see de
 - [ ] Public headers explain types in plain language  
 - [ ] Non-obvious algorithms have `LEARNER:` + complexity note where relevant  
 - [ ] Spec links for ops/IR touched in the PR  
-- [ ] Matching `docs/` chapter updated  
+- [ ] Matching `docs/` chapter updated
+
+## Status early-return macros
+
+Do **not** hand-roll repeated blocks like:
+
+```cpp
+if (!st.ok()) {
+  return st;
+}
+// or
+if (!x.ok()) {
+  return x.status();
+}
+```
+
+Use `include/eduort/macros.h` instead:
+
+- `EDUORT_RETURN_IF_ERROR(status_expr)`
+- `EDUORT_ASSIGN_OR_RETURN(lhs, status_or_expr)`
+
+This keeps fallible call chains readable and consistent across PRs.
+

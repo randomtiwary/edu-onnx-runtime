@@ -44,6 +44,25 @@ eduort::Tensor tensor = std::move(t).value();
 
 Do **not** call `value()` / `ValueOrDie()` without checking `ok()` in library code. `ValueOrDie` aborts — tests and demos only.
 
+## Error early-return macros
+
+Hand-writing `if (!x.ok()) return x.status();` everywhere is noisy. Use
+[`include/eduort/macros.h`](../include/eduort/macros.h):
+
+| Macro | Meaning |
+|-------|---------|
+| `EDUORT_RETURN_IF_ERROR(status_expr)` | If not OK, `return` that Status |
+| `EDUORT_ASSIGN_OR_RETURN(lhs, status_or_expr)` | On OK, move value into `lhs`; else return Status |
+
+```cpp
+EDUORT_RETURN_IF_ERROR(ValidateShape(shape));
+EDUORT_ASSIGN_OR_RETURN(const std::size_t nbytes, ComputeNBytes(dt, shape));
+```
+
+These work in functions that return `Status` **or** `StatusOr<T>` (a failed
+Status converts into a failed StatusOr).
+
+
 ## Creating tensors
 
 ### `Tensor::Create` — runtime owns the buffer
