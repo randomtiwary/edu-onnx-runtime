@@ -44,6 +44,7 @@ add_library(eduort STATIC
   src/status.cpp
   src/allocator.cpp
   src/tensor.cpp
+  src/file_utils.cpp
   src/model_proto.cpp
 )
 add_library(eduort::eduort ALIAS eduort)
