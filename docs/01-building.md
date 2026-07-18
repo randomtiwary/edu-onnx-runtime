@@ -73,3 +73,25 @@ ln -sf build/compile_commands.json compile_commands.json
 
 - Comment conventions: [comment-style.md](comment-style.md)
 - Roadmap: [milestones.md](milestones.md)
+
+
+## Protobuf and the ONNX schema (PR3a+)
+
+eduort loads `.onnx` files with **Protocol Buffers**.
+
+| Piece | Where |
+|-------|--------|
+| Schema (pin **onnx v1.14.1**) | `third_party/onnx/onnx.proto` |
+| Codegen | CMake runs `protoc` → `build/generated/onnx/onnx.pb.{h,cc}` |
+| Loader | `eduort::LoadModelProtoFromFile` → `onnx::ModelProto` |
+
+System packages (Ubuntu):
+
+```bash
+sudo apt install libprotobuf-dev protobuf-compiler
+```
+
+If Protobuf is missing and `-DEDUORT_FETCH_PROTOBUF=ON` (default), CMake may
+download protobuf v21.12 (slow first configure).
+
+Smoke fixture: `testdata/models/minimal_smoke.onnx` (empty graph, `ir_version=8`).

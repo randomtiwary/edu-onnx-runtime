@@ -13,8 +13,8 @@ Full design: [design.md](design.md). This page is the **learner-facing** checkli
 | ID | PR | Learning outcome | Release |
 |----|-----|------------------|---------|
 | M0 | PR1 | CMake library layout, version surface, doc spine | 0.0.1 |
-| M1 | **PR2** | Errors (`Status`/`StatusOr`), tensors, host memory | |
-| M2 | PR3a | Protobuf codegen; parse `ModelProto` | |
+| M1 | PR2 | Errors (`Status`/`StatusOr`), tensors, host memory | |
+| M2 | **PR3a** | Protobuf codegen; parse `ModelProto` | |
 | M3 | PR3b | Map ONNX → in-memory Graph IR | |
 | M4 | PR4 | Structural validation + topological sort | |
 | M5 | PR5 | EP interface, kernel registry, CPU shell | |
@@ -31,8 +31,8 @@ Full design: [design.md](design.md). This page is the **learner-facing** checkli
 ## PR titles (implementation order)
 
 1. `chore: initial repository skeleton and CMake build` ✓
-2. `feat: Status, StatusOr, Tensor, TensorShape, and host allocator` ← **this PR**
-3. `build: protobuf + onnx.proto generation and ModelProto smoke parse` (3a)
+2. `feat: Status, StatusOr, Tensor, TensorShape, and host allocator` ✓
+3. `build: protobuf + onnx.proto generation and ModelProto smoke parse` (3a) ← **this PR**
 4. `feat: map ModelProto to Graph IR` (3b)
 5. `feat: graph structural validation and topological sort`
 6. `feat: execution provider interface, registry, and CPU provider shell`

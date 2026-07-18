@@ -4,7 +4,7 @@
 # LEARNER: CMake is the build system. This file answers three questions:
 #   1) What do we build?  (a static library named `eduort`)
 #   2) How do we compile it? (C++ standard, warnings, include paths)
-#   3) What options exist? (CUDA, tests, tools — most land in later PRs)
+#   3) What options exist? (CUDA, tests, tools, protobuf)
 #
 # Generate + build (from repo root):
 #   cmake -G Ninja -B build -DEDUORT_ENABLE_CUDA=OFF
@@ -34,24 +34,22 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Export compile_commands.json for clangd / IDEs (nice for learning).
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# ---- Third-party: Protobuf + ONNX schema codegen (PR3a) ----------------------
+include(cmake/Dependencies.cmake)
+
 # ---- Library target ---------------------------------------------------------
-# LEARNER: We use a STATIC library by default (Key Decision K18). That means
-# the final test/CLI binary will contain our object code directly — simpler
-# to debug than shared libraries while the project is small.
-#
-# The ALIAS target `eduort::eduort` is the modern CMake way to depend on us:
-#   target_link_libraries(my_app PRIVATE eduort::eduort)
+# LEARNER: We use a STATIC library by default (Key Decision K18).
 add_library(eduort STATIC
   src/version.cpp
   src/status.cpp
   src/allocator.cpp
   src/tensor.cpp
+  src/model_proto.cpp
 )
 add_library(eduort::eduort ALIAS eduort)
 
 target_include_directories(eduort
   PUBLIC
-    # Consumers (tests, tools) include headers as #include "eduort/..."
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
@@ -63,10 +61,11 @@ target_compile_definitions(eduort
     EDUORT_VERSION_PATCH=${PROJECT_VERSION_PATCH}
 )
 
+# LEARNER: Link the generated onnx::ModelProto library so callers can
+# #include "onnx.pb.h" via eduort headers (model_proto.h).
+target_link_libraries(eduort PUBLIC eduort::onnx_proto)
+
 if(EDUORT_ENABLE_CUDA)
-  # PR10 will enable CUDA language and kernels. For now we only record the flag
-  # so BuildInfo() can report intent and we fail loudly if someone enables CUDA
-  # before the provider exists.
   message(WARNING
     "EDUORT_ENABLE_CUDA=ON is accepted but CUDA sources are not implemented until PR10. "
     "Building CPU-only library; BuildInfo will still report CUDA=ON.")
@@ -75,18 +74,14 @@ endif()
 
 eduort_set_project_warnings(eduort)
 
-# ---- Smoke executable (proves linking works) --------------------------------
-# LEARNER: A tiny program that only prints the version is enough for PR1 to
-# demonstrate "configure → build → run" without any ML code yet.
+# ---- Smoke executable -------------------------------------------------------
 add_executable(eduort_version_smoke
   tools/version_smoke.cpp
 )
 target_link_libraries(eduort_version_smoke PRIVATE eduort::eduort)
 eduort_set_project_warnings(eduort_version_smoke)
 
-# ---- Unit tests (GoogleTest via FetchContent) -------------------------------
-# LEARNER: Tests are optional at configure time (-DEDUORT_BUILD_TESTS=OFF) so
-# a minimal classroom machine can still build the library alone.
+# ---- Unit tests -------------------------------------------------------------
 if(EDUORT_BUILD_TESTS)
   enable_testing()
   include(cmake/GoogleTest.cmake)

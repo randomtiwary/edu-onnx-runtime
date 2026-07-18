@@ -1,0 +1,17 @@
+# Third-party notices
+
+## ONNX (schema)
+- Project: ONNX
+- File: third_party/onnx/onnx.proto (from tag v1.14.1)
+- License: Apache-2.0
+- https://github.com/onnx/onnx
+
+## Protocol Buffers
+- Project: protobuf (system package or FetchContent v21.12)
+- License: BSD-3-Clause
+- https://github.com/protocolbuffers/protobuf
+
+## GoogleTest
+- Fetched at configure time (v1.14.0) when EDUORT_BUILD_TESTS=ON
+- License: BSD-3-Clause
+- https://github.com/google/googletest
