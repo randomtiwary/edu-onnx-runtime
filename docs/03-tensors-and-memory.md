@@ -1,7 +1,7 @@
 # 03 — Tensors and memory
 
 **Lands with:** PR2  
-**Headers:** `include/eduort/status.h`, `allocator.h`, `tensor.h`
+**Headers:** `include/eduort/status.h`, `allocator.h`, `tensor.h`, `macros.h`
 
 ## Mental model
 
@@ -112,11 +112,21 @@ IAllocator  (device, Allocate, Free)
 
 ## Shape edge cases
 
+Runtime dims are **`uint64_t`** (non-negative by construction). ONNX’s signed
+`int64` dims enter via `TensorShape::FromSignedDims`, which rejects `d < 0`.
+
 | Shape | `NumElements()` |
 |-------|-----------------|
 | `[]` (rank 0 scalar) | `1` |
 | `[0]` or `[2,0,3]` | `0` |
-| negative dim | invalid (`kInvalidArgument`) |
+| product overflows `uint64` | soft-fail via `NumElementsChecked` / `Create`; `NumElements()` **aborts** |
+| signed dim `< 0` | `FromSignedDims` → `kInvalidArgument` |
+
+## Typed data accessors
+
+`data_f32()` / `mutable_data_i64()` etc. **require** the matching `dtype()`.
+A mismatch is a programmer error: the accessor **aborts** (it does not return
+`nullptr`). Check `dtype()` first if the type is not obvious at the call site.
 
 ## What is *not* here yet
 

@@ -5,6 +5,8 @@
 
 #include "eduort/macros.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <limits>
 #include <sstream>
 #include <string>
@@ -13,32 +15,20 @@ namespace eduort {
 namespace {
 
 Status ValidateShape(const TensorShape& shape) {
-  for (int64_t d : shape.Dims()) {
-    if (d < 0) {
-      return Status::Error(ErrorCode::kInvalidArgument,
-                           "TensorShape dims must be >= 0 (got " +
-                               std::to_string(d) + ")");
-    }
-  }
-  // Overflow / negative dims also checked inside NumElementsChecked.
+  // Dims are uint64_t (non-negative by type). Only overflow can fail.
   EDUORT_RETURN_IF_ERROR(shape.NumElementsChecked().status());
   return Status::OK();
 }
 
 StatusOr<std::size_t> ComputeNBytes(DataType dt, const TensorShape& shape) {
-  EDUORT_ASSIGN_OR_RETURN(const int64_t n, shape.NumElementsChecked());
+  EDUORT_ASSIGN_OR_RETURN(const uint64_t n, shape.NumElementsChecked());
   const std::size_t elem = SizeOfDataType(dt);
   if (elem == 0) {
     return Status::Error(ErrorCode::kInvalidArgument,
                          std::string("unsupported DataType: ") + DataTypeName(dt));
   }
   // Overflow-safe multiply: n * elem fits in size_t?
-  if (n < 0) {
-    return Status::Error(ErrorCode::kInvalidArgument, "negative element count");
-  }
-  if (n > 0 &&
-      static_cast<uint64_t>(n) >
-          (std::numeric_limits<std::size_t>::max() / elem)) {
+  if (n > 0 && n > (std::numeric_limits<std::size_t>::max() / elem)) {
     return Status::Error(ErrorCode::kInvalidArgument,
                          "tensor byte size overflows size_t");
   }
@@ -69,33 +59,52 @@ std::size_t SizeOfDataType(DataType dt) noexcept {
 
 // ---- TensorShape -----------------------------------------------------------
 
-TensorShape::TensorShape(std::vector<int64_t> dims) : dims_(std::move(dims)) {}
+TensorShape::TensorShape(std::vector<uint64_t> dims) : dims_(std::move(dims)) {}
 
-StatusOr<int64_t> TensorShape::NumElementsChecked() const {
-  // LEARNER: Rank-0 (scalar) has one element by ONNX convention.
-  int64_t product = 1;
-  for (int64_t d : dims_) {
+TensorShape::TensorShape(std::initializer_list<uint64_t> dims) : dims_(dims) {}
+
+StatusOr<TensorShape> TensorShape::FromSignedDims(std::vector<int64_t> dims) {
+  // LEARNER: ONNX TensorProto / ValueInfo use int64 dims. Convert at the
+  // boundary so the rest of the runtime only sees non-negative sizes.
+  std::vector<uint64_t> out;
+  out.reserve(dims.size());
+  for (int64_t d : dims) {
     if (d < 0) {
       return Status::Error(ErrorCode::kInvalidArgument,
-                           "negative dimension in TensorShape");
+                           "TensorShape dim must be >= 0 (got " +
+                               std::to_string(d) +
+                               "); symbolic/negative dims are not supported");
     }
+    out.push_back(static_cast<uint64_t>(d));
+  }
+  return TensorShape(std::move(out));
+}
+
+StatusOr<uint64_t> TensorShape::NumElementsChecked() const {
+  // LEARNER: Rank-0 (scalar) has one element by ONNX convention.
+  uint64_t product = 1;
+  for (uint64_t d : dims_) {
     if (d == 0) {
-      return static_cast<int64_t>(0);
+      return static_cast<uint64_t>(0);
     }
-    // product * d overflow?
-    if (product > std::numeric_limits<int64_t>::max() / d) {
+    if (product > std::numeric_limits<uint64_t>::max() / d) {
       return Status::Error(ErrorCode::kInvalidArgument,
-                           "TensorShape NumElements overflows int64");
+                           "TensorShape NumElements overflows uint64");
     }
     product *= d;
   }
   return product;
 }
 
-int64_t TensorShape::NumElements() const {
-  StatusOr<int64_t> n = NumElementsChecked();
+uint64_t TensorShape::NumElements() const {
+  StatusOr<uint64_t> n = NumElementsChecked();
   if (!n.ok()) {
-    return -1;
+    // LEARNER: Do not return a sentinel like -1 — that invites silent bugs.
+    // Invalid shapes should fail at FromSignedDims / Create via StatusOr.
+    std::fprintf(stderr,
+                 "eduort::TensorShape::NumElements() on invalid shape: %s\n",
+                 n.status().ToString().c_str());
+    std::abort();
   }
   return n.value();
 }
@@ -123,6 +132,16 @@ Tensor::Tensor(DataType dt, TensorShape shape, DeviceKind device,
       buffer_(std::move(buffer)),
       nbytes_(nbytes),
       owns_data_(owns_data) {}
+
+void Tensor::CheckDtype(DataType expected, const char* accessor) const {
+  if (dtype_ != expected) {
+    std::fprintf(stderr,
+                 "eduort::Tensor::%s: dtype mismatch (tensor is %s, accessor "
+                 "expects %s). Check dtype() before calling typed accessors.\n",
+                 accessor, DataTypeName(dtype_), DataTypeName(expected));
+    std::abort();
+  }
+}
 
 StatusOr<Tensor> Tensor::Create(DataType dt, TensorShape shape,
                                 DeviceKind device) {
@@ -184,21 +203,21 @@ StatusOr<Tensor> Tensor::FromHostBlob(DataType dt, TensorShape shape,
                 /*owns_data=*/false);
 }
 
-float* Tensor::mutable_data_f32() noexcept {
-  return dtype_ == DataType::kFloat32 ? static_cast<float*>(mutable_data())
-                                      : nullptr;
+float* Tensor::mutable_data_f32() {
+  CheckDtype(DataType::kFloat32, "mutable_data_f32");
+  return static_cast<float*>(mutable_data());
 }
-const float* Tensor::data_f32() const noexcept {
-  return dtype_ == DataType::kFloat32 ? static_cast<const float*>(data())
-                                      : nullptr;
+const float* Tensor::data_f32() const {
+  CheckDtype(DataType::kFloat32, "data_f32");
+  return static_cast<const float*>(data());
 }
-int64_t* Tensor::mutable_data_i64() noexcept {
-  return dtype_ == DataType::kInt64 ? static_cast<int64_t*>(mutable_data())
-                                    : nullptr;
+int64_t* Tensor::mutable_data_i64() {
+  CheckDtype(DataType::kInt64, "mutable_data_i64");
+  return static_cast<int64_t*>(mutable_data());
 }
-const int64_t* Tensor::data_i64() const noexcept {
-  return dtype_ == DataType::kInt64 ? static_cast<const int64_t*>(data())
-                                    : nullptr;
+const int64_t* Tensor::data_i64() const {
+  CheckDtype(DataType::kInt64, "data_i64");
+  return static_cast<const int64_t*>(data());
 }
 
 }  // namespace eduort

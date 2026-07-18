@@ -7,6 +7,7 @@
 #include "eduort/tensor.h"
 
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -17,7 +18,7 @@ namespace {
 TEST(TensorShapeTest, RankAndElements) {
   TensorShape s({2, 3, 4});
   EXPECT_EQ(s.rank(), 3);
-  EXPECT_EQ(s.NumElements(), 24);
+  EXPECT_EQ(s.NumElements(), 24u);
   EXPECT_EQ(s.ToString(), "[2,3,4]");
 }
 
@@ -25,17 +26,31 @@ TEST(TensorShapeTest, ScalarRank0) {
   // LEARNER: ONNX scalar = empty shape, one element.
   TensorShape s;  // rank 0
   EXPECT_EQ(s.rank(), 0);
-  EXPECT_EQ(s.NumElements(), 1);
+  EXPECT_EQ(s.NumElements(), 1u);
 }
 
 TEST(TensorShapeTest, ZeroDim) {
   TensorShape s({2, 0, 3});
-  EXPECT_EQ(s.NumElements(), 0);
+  EXPECT_EQ(s.NumElements(), 0u);
 }
 
-TEST(TensorShapeTest, NegativeDimFailsChecked) {
-  TensorShape s({2, -1});
-  StatusOr<int64_t> n = s.NumElementsChecked();
+TEST(TensorShapeTest, FromSignedDimsRejectsNegative) {
+  // LEARNER: uint64_t dims cannot be negative; the ONNX bridge rejects d < 0.
+  StatusOr<TensorShape> s = TensorShape::FromSignedDims({2, -1});
+  EXPECT_FALSE(s.ok());
+  EXPECT_EQ(s.status().code(), ErrorCode::kInvalidArgument);
+}
+
+TEST(TensorShapeTest, FromSignedDimsAcceptsNonNegative) {
+  StatusOr<TensorShape> s = TensorShape::FromSignedDims({2, 3});
+  ASSERT_TRUE(s.ok()) << s.status().ToString();
+  EXPECT_EQ(s->NumElements(), 6u);
+}
+
+TEST(TensorShapeTest, OverflowFailsChecked) {
+  // Two huge dims whose product does not fit in uint64.
+  TensorShape s({std::numeric_limits<uint64_t>::max(), 2});
+  StatusOr<uint64_t> n = s.NumElementsChecked();
   EXPECT_FALSE(n.ok());
   EXPECT_EQ(n.status().code(), ErrorCode::kInvalidArgument);
 }
@@ -44,7 +59,7 @@ TEST(TensorCreateTest, FloatMatrix) {
   StatusOr<Tensor> t = Tensor::Create(DataType::kFloat32, TensorShape({2, 3}));
   ASSERT_TRUE(t.ok()) << t.status().ToString();
   EXPECT_EQ(t->dtype(), DataType::kFloat32);
-  EXPECT_EQ(t->shape().NumElements(), 6);
+  EXPECT_EQ(t->shape().NumElements(), 6u);
   EXPECT_EQ(t->nbytes(), 6 * sizeof(float));
   EXPECT_EQ(t->device(), DeviceKind::kCPU);
   EXPECT_TRUE(t->owns_data());
@@ -63,7 +78,6 @@ TEST(TensorCreateTest, Int64Vector) {
   EXPECT_EQ(t->nbytes(), 4 * sizeof(int64_t));
   t->mutable_data_i64()[0] = 42;
   EXPECT_EQ(t->data_i64()[0], 42);
-  EXPECT_EQ(t->mutable_data_f32(), nullptr);  // dtype mismatch
 }
 
 TEST(TensorCreateTest, EmptyTensor) {
@@ -80,11 +94,18 @@ TEST(TensorCreateTest, RejectsCudaDeviceInPr2) {
   EXPECT_EQ(t.status().code(), ErrorCode::kInvalidArgument);
 }
 
-TEST(TensorCreateTest, RejectsNegativeShape) {
-  StatusOr<Tensor> t =
-      Tensor::Create(DataType::kFloat32, TensorShape({1, -5}));
+TEST(TensorCreateTest, RejectsOverflowingShape) {
+  StatusOr<Tensor> t = Tensor::Create(
+      DataType::kFloat32,
+      TensorShape({std::numeric_limits<uint64_t>::max(), 2}));
   EXPECT_FALSE(t.ok());
   EXPECT_EQ(t.status().code(), ErrorCode::kInvalidArgument);
+}
+
+TEST(TensorCreateTest, RejectsNegativeViaFromSignedDims) {
+  StatusOr<TensorShape> shape = TensorShape::FromSignedDims({1, -5});
+  ASSERT_FALSE(shape.ok());
+  EXPECT_EQ(shape.status().code(), ErrorCode::kInvalidArgument);
 }
 
 TEST(TensorFromHostBlobTest, WrapsWithoutOwning) {
@@ -125,6 +146,15 @@ TEST(TensorCopyShareTest, SharedPtrAlias) {
   Tensor b = a.value();  // copy
   EXPECT_EQ(b.data_f32(), a->data_f32());
   EXPECT_FLOAT_EQ(b.data_f32()[0], 3.5f);
+}
+
+// Death tests: typed accessor with wrong dtype aborts (programmer error).
+TEST(TensorDeathTest, TypedAccessorWrongDtypeAborts) {
+  StatusOr<Tensor> t = Tensor::Create(DataType::kInt64, TensorShape({1}));
+  ASSERT_TRUE(t.ok());
+  EXPECT_DEATH(
+      { (void)t->mutable_data_f32(); },
+      "dtype mismatch");
 }
 
 }  // namespace
