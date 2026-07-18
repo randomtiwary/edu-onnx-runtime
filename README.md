@@ -39,8 +39,9 @@ VersionString() = 0.0.1
 | Milestone | Status | What you get |
 |-----------|--------|--------------|
 | PR1 — skeleton | done | CMake, version API, docs scaffolding |
-| **PR2** — tensors | **you are here** | `Status` / `StatusOr`, `Tensor`, host allocator, GoogleTest |
-| PR3a–3b | planned | protobuf + ONNX `ModelProto` load → Graph IR |
+| PR2 — tensors | done | `Status` / `StatusOr`, `Tensor`, host allocator, GoogleTest |
+| **PR3a** — protobuf smoke | **you are here** | `protoc` + `ModelProto` parse |
+| PR3b | planned | Map `ModelProto` → Graph IR |
 | PR4–8 | planned | validation, topo sort, registry, CPU kernels |
 | PR9a | planned | `Session::Create` / `Run` end-to-end on CPU → **v0.1.0** |
 | PR9b | planned | `eduort-run` CLI |
