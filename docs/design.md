@@ -69,7 +69,7 @@ Greenfield. No existing code in the workspace for this project. Hardware context
 | iGPU | Intel UHD (Tiger Lake) — **out of scope** |
 | Toolchain | g++ 12.3, clang 14, **CMake 4.3.1** on author machine (project requires **≥ 3.24**), Ninja 1.10.1, Linux Ubuntu 22.04 |
 
-**Environment report (before PR3 / PR10):** run and paste into `docs/02-building.md` via `scripts/env_report.sh` (and optional `scripts/check_cuda.py`): `g++ --version`, `cmake --version`, `protoc --version`, `nvcc -V`, `nvidia-smi`, `ls /dev/nvidia*`. Treat intermittent `nvidia-smi` failure as expected, not as a hard CI dependency.
+**Environment report (before PR3 / PR10):** run and paste into `docs/01-building.md` via `scripts/env_report.sh` (and optional `scripts/check_cuda.py`): `g++ --version`, `cmake --version`, `protoc --version`, `nvcc -V`, `nvidia-smi`, `ls /dev/nvidia*`. Treat intermittent `nvidia-smi` failure as expected, not as a hard CI dependency.
 
 ### Pain points we accept by design
 
@@ -215,18 +215,18 @@ sequenceDiagram
   participant Plan as NodeExec
   participant Kernel
 
-  App->>Env: Create Env (logging)
-  App->>Session: Session::Create(env, path, opts)
-  Session->>Session: Load ModelProto, Graph IR, topo, bind kernels+devices
-  App->>Session: Run(feeds, output_names)
-  Session->>Values: Seed initializers; overlay feeds
-  loop each NodeExec in topo order
-    Session->>Session: Ensure inputs on required device (H2D/D2H if needed)
-    Session->>Kernel: Compute(ctx)
-    Kernel-->>Values: Write outputs (device of this EP)
+  App->>Env: Create Env logging
+  App->>Session: Session Create env path opts
+  Session->>Session: Load ModelProto Graph IR topo bind kernels
+  App->>Session: Run feeds and output names
+  Session->>Values: Seed initializers and overlay feeds
+  loop For each NodeExec in topo order
+    Session->>Session: Ensure inputs on required device H2D or D2H
+    Session->>Kernel: Compute ctx
+    Kernel-->>Values: Write outputs on this EP device
   end
-  Session->>Session: Materialize graph outputs on CPU → fetches
-  Session-->>App: Status + host Tensors in fetches
+  Session->>Session: Materialize graph outputs on CPU to fetches
+  Session-->>App: Status and host Tensors in fetches
 ```
 
 ### Core components
@@ -915,8 +915,8 @@ edu-onnx-runtime/
 │   └── env_report.sh
 ├── docs/
 │   ├── 00-overview.md
-│   ├── 01-what-is-onnx.md
-│   ├── 02-building.md
+│   ├── 01-building.md
+│   ├── 02-what-is-onnx.md
 │   ├── 03-tensors-and-memory.md
 │   ├── 04-graph-and-topo.md
 │   ├── 05-kernels-and-registry.md
@@ -1110,8 +1110,8 @@ Every **feature PR** must:
 | Doc | When | Content |
 |-----|------|---------|
 | `00-overview.md` | PR1 | Goals, map of repo |
-| `01-what-is-onnx.md` | PR3b | Proto → graph |
-| `02-building.md` | PR1 | CMake, CUDA on/off, env report |
+| `01-building.md` | PR1 | CMake, CUDA on/off, env report |
+| `02-what-is-onnx.md` | PR3b | Proto → graph |
 | `03-tensors-and-memory.md` | PR2 | Ownership table |
 | `04-graph-and-topo.md` | PR4 | IR, Kahn, structural validation |
 | `05-kernels-and-registry.md` | PR5 | Dispatch, since_version |
@@ -1258,7 +1258,7 @@ Each feature PR updates its doc chapter per [Pedagogy acceptance](#pedagogy-acce
 | | |
 |--|--|
 | **Title** | `chore: initial repository skeleton and CMake build` |
-| **Files/components** | `CMakeLists.txt` (`cmake_minimum_required(3.24)`, static `eduort`, alias `eduort::eduort`), `cmake/*`, version symbol, `README.md`, `LICENSE`, `docs/00-overview.md`, `docs/02-building.md`, `docs/milestones.md` (learning outcomes placeholders), `docs/comment-style.md`, `.gitignore`, `.github/workflows/ci.yml` with **`-DEDUORT_ENABLE_CUDA=OFF`**, `scripts/env_report.sh` |
+| **Files/components** | `CMakeLists.txt` (`cmake_minimum_required(3.24)`, static `eduort`, alias `eduort::eduort`), `cmake/*`, version symbol, `README.md`, `LICENSE`, `docs/00-overview.md`, `docs/01-building.md`, `docs/milestones.md` (learning outcomes placeholders), `docs/comment-style.md`, `.gitignore`, `.github/workflows/ci.yml` with **`-DEDUORT_ENABLE_CUDA=OFF`**, `scripts/env_report.sh` |
 | **Depends on** | None |
 | **Description** | Scaffold only. No ONNX. Document goals, green definition, pedagogy gates. CI configure+build (+ trivial test if present). **No install() rules.** |
 
@@ -1280,7 +1280,7 @@ Each feature PR updates its doc chapter per [Pedagogy acceptance](#pedagogy-acce
 | | |
 |--|--|
 | **Title** | `build: protobuf + onnx.proto generation and ModelProto smoke parse` |
-| **Files/components** | `cmake/Dependencies.cmake`, pinned onnx 1.14.1 proto fetch, protobuf find/FetchContent, tiny `tests/proto_smoke_test.cpp` reading a minimal committed `.onnx` byte file, docs note in `02-building.md` |
+| **Files/components** | `cmake/Dependencies.cmake`, pinned onnx 1.14.1 proto fetch, protobuf find/FetchContent, tiny `tests/proto_smoke_test.cpp` reading a minimal committed `.onnx` byte file, docs note in `01-building.md` |
 | **Depends on** | PR 2 |
 | **Description** | Prove codegen+link works. Parse `ModelProto`, assert `has_graph()`. No full IR mapping yet. |
 
@@ -1291,7 +1291,7 @@ Each feature PR updates its doc chapter per [Pedagogy acceptance](#pedagogy-acce
 | | |
 |--|--|
 | **Title** | `feat: map ModelProto to Graph IR` |
-| **Files/components** | `include/eduort/graph.h`, `src/ir/onnx_loader.cpp`, `tests/loader_test.cpp`, `scripts/export_mlp.py` (minimal helper graph), `scripts/check_model_ops.py` (stub list), `docs/01-what-is-onnx.md`, opset resolve helper (range check) |
+| **Files/components** | `include/eduort/graph.h`, `src/ir/onnx_loader.cpp`, `tests/loader_test.cpp`, `scripts/export_mlp.py` (minimal helper graph), `scripts/check_model_ops.py` (stub list), `docs/02-what-is-onnx.md`, opset resolve helper (range check) |
 | **Depends on** | PR 3a |
 | **Description** | Full mapping of nodes/initializers/IO/attributes we care about. LEARNER comments field-by-field. Reject other domains / opset out of [11,17]. Accept `ir_version` ∈ **[3, 9]** with warn-outside. Canonicalize `ai.onnx` → `""`. Stub `check_model_ops.py` allowlist (grow in PR6–8). |
 

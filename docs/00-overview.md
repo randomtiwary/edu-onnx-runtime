@@ -53,6 +53,6 @@ PR1 only proves the **build system and documentation spine**. There is no model 
 
 ## Next chapter
 
-- Building: [02-building.md](02-building.md)
+- Building: [01-building.md](01-building.md)
 - Full design: [design.md](design.md)
 - Roadmap: [milestones.md](milestones.md)

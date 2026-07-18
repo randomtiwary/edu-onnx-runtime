@@ -54,7 +54,7 @@ VersionString() = 0.0.1
 ## Learning path
 
 1. Read [docs/00-overview.md](docs/00-overview.md) — big picture.
-2. Read [docs/02-building.md](docs/02-building.md) — build & options.
+2. Read [docs/01-building.md](docs/01-building.md) — build & options.
 3. Skim [docs/design.md](docs/design.md) — architecture and PR plan.
 4. Follow [docs/comment-style.md](docs/comment-style.md) when reading or writing code (`LEARNER:` tags).
 

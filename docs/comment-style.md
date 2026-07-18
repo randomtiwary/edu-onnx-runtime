@@ -50,8 +50,8 @@ Feature PRs update the matching chapter under `docs/` in the **same** PR (see de
 | Doc | Lands with |
 |-----|------------|
 | `00-overview.md` | PR1 |
-| `01-what-is-onnx.md` | PR3b |
-| `02-building.md` | PR1 |
+| `01-building.md` | PR1 |
+| `02-what-is-onnx.md` | PR3b |
 | `03-tensors-and-memory.md` | PR2 |
 | `04-graph-and-topo.md` | PR4 |
 | `05` / `07` registry + EP | PR5 |
