@@ -59,8 +59,8 @@ VersionString() = 0.0.1
 2. Read [docs/01-building.md](docs/01-building.md) — build & options.
 3. Read [docs/02-what-is-onnx.md](docs/02-what-is-onnx.md) — ModelProto → Graph IR.
 4. Read [docs/03-tensors-and-memory.md](docs/03-tensors-and-memory.md) — Status, Tensor, ownership.
-4. Skim [docs/design.md](docs/design.md) — architecture and PR plan.
-5. Follow [docs/comment-style.md](docs/comment-style.md) when reading or writing code (`LEARNER:` tags).
+5. Skim [docs/design.md](docs/design.md) — architecture and PR plan.
+6. Follow [docs/comment-style.md](docs/comment-style.md) when reading or writing code (`LEARNER:` tags).
 
 ## Comment style
 
