@@ -1,13 +1,12 @@
 # LEARNER: Project options live in one place so CMakeLists stays readable.
 # Each option is a compile-time switch you can flip with -D... on the cmake line.
-# Later PRs will grow this file (protobuf, CUDA, tests, tools).
 
 option(EDUORT_ENABLE_CUDA
   "Build CUDA execution provider (requires nvcc + working toolkit). Default OFF until PR10."
   OFF)
 
 option(EDUORT_BUILD_TESTS
-  "Build unit tests (GoogleTest). Default ON for developers; PR2 will wire tests."
+  "Build unit tests (GoogleTest via FetchContent)."
   ON)
 
 option(EDUORT_BUILD_TOOLS

@@ -9,6 +9,7 @@
 # Generate + build (from repo root):
 #   cmake -G Ninja -B build -DEDUORT_ENABLE_CUDA=OFF
 #   cmake --build build
+#   ctest --test-dir build --output-on-failure
 #
 # Design reference: docs/design.md  |  Pedagogy: docs/comment-style.md
 # =============================================================================
@@ -42,6 +43,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #   target_link_libraries(my_app PRIVATE eduort::eduort)
 add_library(eduort STATIC
   src/version.cpp
+  src/status.cpp
+  src/allocator.cpp
+  src/tensor.cpp
 )
 add_library(eduort::eduort ALIAS eduort)
 
@@ -80,10 +84,19 @@ add_executable(eduort_version_smoke
 target_link_libraries(eduort_version_smoke PRIVATE eduort::eduort)
 eduort_set_project_warnings(eduort_version_smoke)
 
+# ---- Unit tests (GoogleTest via FetchContent) -------------------------------
+# LEARNER: Tests are optional at configure time (-DEDUORT_BUILD_TESTS=OFF) so
+# a minimal classroom machine can still build the library alone.
+if(EDUORT_BUILD_TESTS)
+  enable_testing()
+  include(cmake/GoogleTest.cmake)
+  add_subdirectory(tests)
+endif()
+
 # ---- Status summary ---------------------------------------------------------
 message(STATUS "eduort ${PROJECT_VERSION}")
 message(STATUS "  C++ standard     : ${CMAKE_CXX_STANDARD}")
 message(STATUS "  CUDA enabled     : ${EDUORT_ENABLE_CUDA}")
-message(STATUS "  Build tests      : ${EDUORT_BUILD_TESTS} (wired in PR2)")
+message(STATUS "  Build tests      : ${EDUORT_BUILD_TESTS}")
 message(STATUS "  Build tools      : ${EDUORT_BUILD_TOOLS} (CLI in PR9b)")
 message(STATUS "  Warnings as errs : ${EDUORT_WARNINGS_AS_ERRORS}")

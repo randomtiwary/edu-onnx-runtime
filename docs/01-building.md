@@ -29,6 +29,7 @@ cmake -G Ninja -B build \
 
 cmake --build build
 ./build/eduort_version_smoke
+ctest --test-dir build --output-on-failure   # PR2+
 ```
 
 ### CMake options (PR1)
