@@ -40,8 +40,8 @@ VersionString() = 0.0.1
 |-----------|--------|--------------|
 | PR1 — skeleton | done | CMake, version API, docs scaffolding |
 | PR2 — tensors | done | `Status` / `StatusOr`, `Tensor`, host allocator, GoogleTest |
-| **PR3a** — protobuf smoke | **you are here** | `protoc` + `ModelProto` parse |
-| PR3b | planned | Map `ModelProto` → Graph IR |
+| PR3a — protobuf smoke | done | `protoc` + `ModelProto` parse |
+| **PR3b** — Graph IR | **you are here** | Map `ModelProto` → `eduort::Graph` |
 | PR4–8 | planned | validation, topo sort, registry, CPU kernels |
 | PR9a | planned | `Session::Create` / `Run` end-to-end on CPU → **v0.1.0** |
 | PR9b | planned | `eduort-run` CLI |
@@ -57,7 +57,8 @@ VersionString() = 0.0.1
 
 1. Read [docs/00-overview.md](docs/00-overview.md) — big picture.
 2. Read [docs/01-building.md](docs/01-building.md) — build & options.
-3. Read [docs/03-tensors-and-memory.md](docs/03-tensors-and-memory.md) — Status, Tensor, ownership.
+3. Read [docs/02-what-is-onnx.md](docs/02-what-is-onnx.md) — ModelProto → Graph IR.
+4. Read [docs/03-tensors-and-memory.md](docs/03-tensors-and-memory.md) — Status, Tensor, ownership.
 4. Skim [docs/design.md](docs/design.md) — architecture and PR plan.
 5. Follow [docs/comment-style.md](docs/comment-style.md) when reading or writing code (`LEARNER:` tags).
 
