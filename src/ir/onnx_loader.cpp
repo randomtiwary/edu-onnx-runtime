@@ -169,19 +169,22 @@ StatusOr<Attribute> MapAttribute(const onnx::AttributeProto& ap) {
 }
 
 StatusOr<Node> MapNode(const onnx::NodeProto& np) {
+  // LEARNER: Validate before constructing Node so error paths allocate nothing.
+  if (np.op_type().empty()) {
+    return Status::Error(ErrorCode::kModelLoad, "node missing op_type");
+  }
+  const std::string domain = CanonicalizeDomain(np.domain());
+  // Only default domain nodes allowed (same policy as opset_import).
+  if (domain != "") {
+    return Status::Error(ErrorCode::kModelLoad,
+                         "node '" + np.name() + "' op " + np.op_type() +
+                             " has unsupported domain '" + np.domain() + "'");
+  }
+
   Node n;
   n.name = np.name();
   n.op_type = np.op_type();
-  if (n.op_type.empty()) {
-    return Status::Error(ErrorCode::kModelLoad, "node missing op_type");
-  }
-  n.domain = CanonicalizeDomain(np.domain());
-  // Only default domain nodes allowed (same policy as opset_import).
-  if (n.domain != "") {
-    return Status::Error(ErrorCode::kModelLoad,
-                         "node '" + n.name + "' op " + n.op_type +
-                             " has unsupported domain '" + np.domain() + "'");
-  }
+  n.domain = domain;
   n.inputs.assign(np.input().begin(), np.input().end());
   n.outputs.assign(np.output().begin(), np.output().end());
   n.attributes.reserve(static_cast<std::size_t>(np.attribute_size()));

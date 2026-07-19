@@ -36,6 +36,25 @@ Wire format = **Protocol Buffers**. Root message: `ModelProto`.
 - [ONNX Operators](https://github.com/onnx/onnx/blob/main/docs/Operators.md)
 - Vendored schema: `third_party/onnx/onnx.proto` (pin v1.14.1)
 
+## What is an operator *domain*?
+
+ONNX operators live in **namespaces** called **domains**, so the same name can mean
+different things in different catalogs:
+
+| Domain string | Who defines it | Examples |
+|---------------|----------------|----------|
+| `""` (empty) or `ai.onnx` | Core ONNX neural-net ops | `Add`, `MatMul`, `Relu` |
+| `ai.onnx.ml` | Classical ML ops (separate catalog) | tree ensembles, scalers |
+| vendor strings | Custom / framework extensions | company-specific ops |
+
+A model’s `opset_import` list is a set of `(domain, version)` pairs: “this graph
+expects version *N* of domain *D*.” Each `NodeProto` can also set `domain`
+(default = empty = core ONNX).
+
+**eduort MVP:** only the **default / core** domain. We treat `""` and `ai.onnx`
+as the same spelling and store `""` everywhere (`CanonicalizeDomain`). Any other
+domain fails load with a clear error.
+
 ## eduort load path (PR3a + PR3b)
 
 ```text
@@ -50,7 +69,10 @@ eduort::Graph   { nodes, initializers, graph_inputs/outputs, opset_version, … 
 
 We **do not** keep raw protobuf in Session. The Graph IR is the teaching surface.
 
-## Policies applied at load (K14)
+## Policies applied at load
+
+These rules come from the project design’s **Key Decision K14** (opset / domain
+policy — full table in [`docs/design.md`](design.md) § Key Decisions):
 
 | Check | Behavior |
 |-------|----------|
@@ -58,6 +80,8 @@ We **do not** keep raw protobuf in Session. The Graph IR is the teaching surface
 | Other domains | Fail (`ai.onnx.ml`, custom, …) |
 | Opset version | Must be in **[11, 17]** |
 | `ir_version` | Prefer **[3, 9]**; **warn** if outside, do not hard-fail |
+
+(“K14” is just the design-doc row id for this decision, not an ONNX term.)
 
 ## Initializers vs graph inputs
 

@@ -5,7 +5,7 @@
 // This is the "compiler front-end" of the runtime: schema-level data becomes
 // the structures Session will execute later.
 //
-// Spec: ONNX IR.md; design K3 / K14
+// Spec: ONNX IR.md; design Key Decisions (full onnx.proto, opset/domain policy)
 
 #pragma once
 
@@ -28,7 +28,7 @@ StatusOr<Graph> LoadGraphFromFile(const std::string& path,
 StatusOr<Graph> LoadGraphFromModelProto(const onnx::ModelProto& model);
 
 // Convert a TensorProto (initializer / Constant attr) into a host Tensor.
-// MVP: float32 and int64 via raw_data or typed repeated fields.
+// Supported ONNX dtypes/payloads: see Tensor / DataType in tensor.h.
 StatusOr<Tensor> TensorFromTensorProto(const onnx::TensorProto& tp);
 
 }  // namespace eduort

@@ -23,8 +23,11 @@
 
 namespace eduort {
 
-// LEARNER: MVP dtypes only (K4 / non-goals). float32 for weights/activations;
-// int64 for shape tensors / axes later (Reshape's second input is int64 data).
+// LEARNER: MVP dtypes only (design K4 / non-goals).
+//   float32 — weights and activations
+//   int64   — shape tensors / axes (e.g. Reshape's second input)
+// When loading ONNX TensorProto we accept these same two types, from either
+// raw_data bytes or the typed repeated fields (float_data / int64_data).
 enum class DataType {
   kFloat32 = 1,
   kInt64 = 2,

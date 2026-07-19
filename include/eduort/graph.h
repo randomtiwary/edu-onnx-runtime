@@ -32,11 +32,12 @@ struct Attribute {
 
   std::string name;
   Kind kind = Kind::kFloat;
-  float f = 0.f;
-  int64_t i = 0;
-  std::vector<int64_t> ints;
-  std::string s;
-  std::optional<Tensor> tensor;  // set when kind == kTensor
+  // Payload fields: only the field matching `kind` is meaningful.
+  float f = 0.f;                      // kind == kFloat
+  int64_t i = 0;                      // kind == kInt
+  std::vector<int64_t> ints;          // kind == kInts
+  std::string s;                      // kind == kString
+  std::optional<Tensor> tensor;       // kind == kTensor
 };
 
 struct Node {
@@ -72,7 +73,7 @@ struct Graph {
   int64_t ir_version = 0;
 };
 
-// Opset acceptance window (design K14).
+// Opset acceptance window (design Key Decision K14: default domain + opset range).
 constexpr int64_t kMinOpset = 11;
 constexpr int64_t kMaxOpset = 17;
 
