@@ -47,6 +47,8 @@ add_library(eduort STATIC
   src/file_utils.cpp
   src/model_proto.cpp
   src/ir/onnx_loader.cpp
+  src/ir/validate.cpp
+  src/ir/topo_sort.cpp
 )
 add_library(eduort::eduort ALIAS eduort)
 
