@@ -49,6 +49,11 @@ add_library(eduort STATIC
   src/ir/onnx_loader.cpp
   src/ir/validate.cpp
   src/ir/topo_sort.cpp
+  src/kernel_context.cpp
+  src/registry.cpp
+  src/planner.cpp
+  src/providers/cpu/cpu_provider.cpp
+  src/providers/cpu/identity_kernel.cpp
 )
 add_library(eduort::eduort ALIAS eduort)
 
