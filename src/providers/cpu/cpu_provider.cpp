@@ -5,12 +5,11 @@
 
 #include "eduort/cpu_provider.h"
 
+#include "identity_kernel.h"
+
 #include <utility>
 
 namespace eduort {
-
-// identity_kernel.cpp
-std::unique_ptr<IKernel> CreateIdentityKernel(const Node& node);
 
 CpuExecutionProvider::CpuExecutionProvider(const KernelRegistry* registry)
     : registry_(registry) {}

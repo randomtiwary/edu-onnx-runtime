@@ -22,7 +22,9 @@ KernelRegistry.Create(domain, op, model_opset, ep="CPU")
 IKernel::Compute(OpKernelContext)
 ```
 
-## Lookup rule (K14)
+## Lookup rule
+
+From design **Key Decision K14** (domain + opset + `since_version` policy — see [`docs/design.md`](design.md) § Key Decisions):
 
 Among registrations matching `(canonical domain, op_type, ep_name)` with  
 `since_version ≤ model_opset`, choose the **largest** `since_version`.
@@ -32,7 +34,7 @@ Example: kernels registered at since 1 and 10; model opset 13 → use since 10.
 ## OpKernelContext
 
 - `Input(i)` — const tensor from the value map (read-only)  
-- `Output(i, dtype, shape)` — allocate via EP allocator, store under output name  
+- `Output(i, dtype, shape)` — allocate via the **EP allocator** passed into the context (`Tensor::Create(dtype, shape, allocator)`), then store under the output name  
 - `GetAttr(name)` — node attributes  
 
 ## Registration style

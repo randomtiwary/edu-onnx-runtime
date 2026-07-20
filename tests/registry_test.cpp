@@ -4,6 +4,7 @@
 // LEARNER: Registry lookup + Identity kernel smoke (PR5).
 
 #include "eduort/cpu_provider.h"
+#include "eduort/execution_provider.h"
 #include "eduort/kernel.h"
 #include "eduort/planner.h"
 #include "eduort/registry.h"
@@ -200,6 +201,144 @@ TEST(PlannerTest, RequiresTopoOrder) {
   auto bindings = BindKernels(g, eps);
   EXPECT_FALSE(bindings.ok());
   EXPECT_EQ(bindings.status().code(), ErrorCode::kInvalidArgument);
+}
+
+
+TEST(PlannerTest, EmptyEpListFails) {
+  Graph g = MakeIdentityGraph();
+  std::vector<IExecutionProvider*> eps;
+  auto bindings = BindKernels(g, eps);
+  EXPECT_FALSE(bindings.ok());
+  EXPECT_EQ(bindings.status().code(), ErrorCode::kInvalidArgument);
+}
+
+TEST(PlannerTest, CreateKernelHardFailurePropagates) {
+  Graph g = MakeIdentityGraph();
+
+  class FailEp final : public IExecutionProvider {
+   public:
+    const char* Name() const override { return "FAIL"; }
+    bool CanProduceKernel(const Node&, int64_t) const override { return true; }
+    StatusOr<std::unique_ptr<IKernel>> CreateKernel(const Node&,
+                                                    int64_t) override {
+      return Status::Error(ErrorCode::kRuntime, "factory boom");
+    }
+    IAllocator* GetAllocator() override { return DefaultCpuAllocator(); }
+  };
+
+  FailEp fail;
+  std::vector<IExecutionProvider*> eps = {&fail};
+  auto bindings = BindKernels(g, eps);
+  ASSERT_FALSE(bindings.ok());
+  EXPECT_EQ(bindings.status().code(), ErrorCode::kRuntime);
+  EXPECT_NE(bindings.status().message().find("factory boom"), std::string::npos);
+}
+
+TEST(PlannerTest, FirstCapableEpWins) {
+  Graph g = MakeIdentityGraph();
+  KernelRegistry reg;
+  RegisterCpuKernels(reg);
+  CpuExecutionProvider cpu(&reg);
+
+  class NeverEp final : public IExecutionProvider {
+   public:
+    const char* Name() const override { return "NEVER"; }
+    bool CanProduceKernel(const Node&, int64_t) const override { return false; }
+    StatusOr<std::unique_ptr<IKernel>> CreateKernel(const Node&,
+                                                    int64_t) override {
+      return Status::Error(ErrorCode::kRuntime, "should not call");
+    }
+    IAllocator* GetAllocator() override { return DefaultCpuAllocator(); }
+  };
+
+  NeverEp never;
+  // never first, cpu second — still binds CPU
+  std::vector<IExecutionProvider*> eps = {&never, &cpu};
+  auto bindings = BindKernels(g, eps);
+  ASSERT_TRUE(bindings.ok()) << bindings.status().ToString();
+  EXPECT_EQ(bindings->at(0).ep_name, "CPU");
+}
+
+TEST(ContextTest, InputOutOfRangeAndEmptyOptional) {
+  Node n;
+  n.op_type = "Gemm";
+  n.inputs = {"A", ""};  // optional second empty
+  n.outputs = {"Y"};
+  std::unordered_map<std::string, Tensor> values;
+  StatusOr<Tensor> a = Tensor::Create(DataType::kFloat32, TensorShape({1}));
+  ASSERT_TRUE(a.ok());
+  values.emplace("A", std::move(a).value());
+  OpKernelContext ctx(n, values, DefaultCpuAllocator());
+
+  auto bad = ctx.Input(5);
+  EXPECT_FALSE(bad.ok());
+  EXPECT_EQ(bad.status().code(), ErrorCode::kInvalidArgument);
+
+  auto empty_slot = ctx.Input(1);
+  EXPECT_FALSE(empty_slot.ok());
+  EXPECT_EQ(empty_slot.status().code(), ErrorCode::kInvalidArgument);
+}
+
+TEST(ContextTest, GetAttrHitAndMiss) {
+  Node n;
+  n.op_type = "Softmax";
+  Attribute axis;
+  axis.name = "axis";
+  axis.kind = Attribute::Kind::kInt;
+  axis.i = -1;
+  n.attributes.push_back(axis);
+  n.inputs = {"X"};
+  n.outputs = {"Y"};
+  std::unordered_map<std::string, Tensor> values;
+  OpKernelContext ctx(n, values, DefaultCpuAllocator());
+  ASSERT_NE(ctx.GetAttr("axis"), nullptr);
+  EXPECT_EQ(ctx.GetAttr("axis")->i, -1);
+  EXPECT_EQ(ctx.GetAttr("missing"), nullptr);
+}
+
+TEST(IdentityKernelTest, ZeroElementTensor) {
+  KernelRegistry reg;
+  RegisterCpuKernels(reg);
+  CpuExecutionProvider cpu(&reg);
+  Node n;
+  n.op_type = "Identity";
+  n.inputs = {"X"};
+  n.outputs = {"Y"};
+  StatusOr<std::unique_ptr<IKernel>> k = cpu.CreateKernel(n, 13);
+  ASSERT_TRUE(k.ok());
+
+  StatusOr<Tensor> x = Tensor::Create(DataType::kFloat32, TensorShape({0}));
+  ASSERT_TRUE(x.ok());
+  std::unordered_map<std::string, Tensor> values;
+  values.emplace("X", std::move(x).value());
+  OpKernelContext ctx(n, values, cpu.GetAllocator());
+  ASSERT_TRUE(k.value()->Compute(ctx).ok());
+  ASSERT_EQ(values.count("Y"), 1u);
+  EXPECT_EQ(values.at("Y").nbytes(), 0u);
+}
+
+TEST(TensorCreateTest, UsesProvidedAllocator) {
+  // Tracking allocator counts Allocate calls.
+  class CountingAllocator final : public IAllocator {
+   public:
+    int allocates = 0;
+    DeviceKind device() const noexcept override { return DeviceKind::kCPU; }
+    const char* Name() const noexcept override { return "CountingAllocator"; }
+    void* Allocate(std::size_t nbytes) override {
+      ++allocates;
+      return DefaultCpuAllocator()->Allocate(nbytes);
+    }
+    void Free(void* ptr) noexcept override {
+      DefaultCpuAllocator()->Free(ptr);
+    }
+  };
+
+  CountingAllocator counting;
+  StatusOr<Tensor> t =
+      Tensor::Create(DataType::kFloat32, TensorShape({4}), &counting);
+  ASSERT_TRUE(t.ok()) << t.status().ToString();
+  EXPECT_EQ(counting.allocates, 1);
+  EXPECT_TRUE(t->owns_data());
 }
 
 }  // namespace

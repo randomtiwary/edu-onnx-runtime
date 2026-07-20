@@ -1,5 +1,11 @@
 // Copyright 2026 randomtiwary
 // SPDX-License-Identifier: Apache-2.0
+//
+// LEARNER: OpKernelContext is the only API a kernel should use during Compute:
+//   - Input(i)  → const Tensor already in the Session value map (read-only)
+//   - Output(i) → allocate a *new* buffer via the EP allocator and register it
+// Seeds/initializers must not be written through Input(); Output always makes
+// a fresh buffer (design seed-immutability contract).
 
 #include "eduort/kernel.h"
 
@@ -46,13 +52,13 @@ StatusOr<Tensor*> OpKernelContext::Output(std::size_t i, DataType dtype,
                          "empty output name for op " + node_.op_type);
   }
   if (allocator_ == nullptr) {
-    return Status::Error(ErrorCode::kRuntime, "OpKernelContext has null allocator");
+    return Status::Error(ErrorCode::kRuntime,
+                         "OpKernelContext has null allocator");
   }
 
-  // LEARNER: Allocate via Tensor::Create (uses host allocator today). Later
-  // CUDA EP will pass a device allocator / device kind.
-  EDUORT_ASSIGN_OR_RETURN(Tensor t,
-                          Tensor::Create(dtype, shape, allocator_->device()));
+  // LEARNER: Allocate *through the EP allocator*, not DefaultCpuAllocator
+  // hardcoded — so CUDA (later) and custom host arenas plug in cleanly.
+  EDUORT_ASSIGN_OR_RETURN(Tensor t, Tensor::Create(dtype, shape, allocator_));
   auto [it, inserted] = values_.insert_or_assign(name, std::move(t));
   (void)inserted;
   return &it->second;

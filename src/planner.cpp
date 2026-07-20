@@ -1,12 +1,13 @@
 // Copyright 2026 randomtiwary
 // SPDX-License-Identifier: Apache-2.0
 //
-// LEARNER: Bind walk — for each node in topo order, try EPs until one creates
-// a kernel. This is the "planning" half of Session::Create without Run.
+// LEARNER: Bind walk — for each node in topo order, try EPs until one can
+// produce a kernel. This is the "planning" half of Session::Create without Run.
+//
+// If CanProduceKernel is true but CreateKernel fails, that is a hard error
+// (null registry, factory bug, OOM) — not "try the next EP".
 
 #include "eduort/planner.h"
-
-#include "eduort/macros.h"
 
 #include <utility>
 
@@ -47,7 +48,8 @@ StatusOr<std::vector<NodeBinding>> BindKernels(
       StatusOr<std::unique_ptr<IKernel>> k =
           ep->CreateKernel(node, graph.opset_version);
       if (!k.ok()) {
-        continue;  // try next EP
+        // CanProduce said yes — Create failing is a hard error, not "try next".
+        return k.status();
       }
       NodeBinding b;
       b.node_index = ni;
