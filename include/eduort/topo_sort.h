@@ -17,13 +17,16 @@
 namespace eduort {
 
 // Compute a topological order of graph.nodes as indices into that vector.
-// Requires ValidateStructure-level name wiring; still re-checks producers.
+// Safe to call standalone: enforces SSA among node outputs, rejects undefined
+// non-seed inputs and self-loops. Prefer PrepareGraphStructure for Session.
 //
-// On cycle or missing producer → kInvalidArgument / kModelLoad with message.
+// On cycle, SSA violation, or missing producer → ErrorCode::kModelLoad.
 StatusOr<std::vector<int>> ComputeTopoOrder(const Graph& graph);
 
 // ValidateStructure + ComputeTopoOrder, then store result in graph.topo_order.
+// Clears topo_order first so a failed prepare never leaves a stale order.
 // This is what Session::Create will call after loading (design checklist).
+// Failures use ErrorCode::kModelLoad.
 Status PrepareGraphStructure(Graph& graph);
 
 }  // namespace eduort

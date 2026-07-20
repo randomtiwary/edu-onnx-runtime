@@ -24,6 +24,11 @@ namespace eduort {
 //
 // Does *not* reject unknown op_types (design PR4: structural only).
 // Cycles are reported by the topological sort (see topo_sort.h).
+//
+// MVP restriction: empty node *output* names are rejected. ONNX allows "" for
+// omitted optional outputs (like empty inputs); no current MVP op needs that.
+// Treat as skip when optional-output ops land (e.g. Dropout mask).
+// Failures use ErrorCode::kModelLoad.
 Status ValidateStructure(const Graph& graph);
 
 }  // namespace eduort

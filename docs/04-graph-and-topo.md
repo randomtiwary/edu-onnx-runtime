@@ -27,8 +27,18 @@ Empty string `""` on a node input means **optional input omitted** (legal).
 
 ## Single assignment (SSA-ish)
 
-Each value name should have **at most one producer node**.  
-`ValidateStructure` rejects duplicate producers.
+Each value name should have **at most one definition**.  
+`ValidateStructure` rejects:
+
+- two nodes writing the same output name  
+- a node output that redefines a **graph input** or **initializer** (seed)
+
+## Empty inputs vs empty outputs
+
+| | Empty string `""` |
+|--|--|
+| **Node input** | Optional input omitted — **allowed** (e.g. Gemm without `C`) |
+| **Node output** | **Rejected in MVP** — no current op needs optional outputs; revisit for Dropout etc. |
 
 ## Topological order (Kahn)
 

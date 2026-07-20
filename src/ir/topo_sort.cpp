@@ -18,13 +18,14 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace eduort {
 namespace {
 
 // Build producer map: value name → node index that defines it.
-// Returns error if a non-empty input has no producer and is not a seed.
+// Enforces SSA (duplicate outputs → error) so standalone ComputeTopoOrder is safe.
 StatusOr<std::unordered_map<std::string, int>> BuildProducerMap(
     const Graph& graph) {
   std::unordered_map<std::string, int> producer;
@@ -32,9 +33,16 @@ StatusOr<std::unordered_map<std::string, int>> BuildProducerMap(
     for (const std::string& out :
          graph.nodes[static_cast<std::size_t>(ni)].outputs) {
       if (out.empty()) {
-        continue;
+        continue;  // empty outputs: ValidateStructure rejects; skip here
       }
-      producer[out] = ni;
+      auto [it, inserted] = producer.emplace(out, ni);
+      if (!inserted) {
+        return Status::Error(
+            ErrorCode::kModelLoad,
+            "value '" + out + "' is produced by multiple nodes (indices " +
+                std::to_string(it->second) + " and " + std::to_string(ni) +
+                "); ONNX graphs must be single-assignment");
+      }
     }
   }
   return producer;
@@ -69,7 +77,7 @@ StatusOr<std::vector<int>> ComputeTopoOrder(const Graph& graph) {
   for (int ni = 0; ni < n; ++ni) {
     const Node& node = graph.nodes[static_cast<std::size_t>(ni)];
     // Unique predecessors so multi-input from same producer counts once.
-    std::unordered_map<int, bool> seen_pred;
+    std::unordered_set<int> seen_pred;
     for (const std::string& in : node.inputs) {
       if (in.empty()) {
         continue;
@@ -89,10 +97,9 @@ StatusOr<std::vector<int>> ComputeTopoOrder(const Graph& graph) {
                              "node '" + node.name + "' consumes its own output '" +
                                  in + "' (self-loop)");
       }
-      if (seen_pred[pred]) {
-        continue;
+      if (!seen_pred.insert(pred).second) {
+        continue;  // already counted edge from this predecessor
       }
-      seen_pred[pred] = true;
       adj[static_cast<std::size_t>(pred)].push_back(ni);
       indeg[static_cast<std::size_t>(ni)] += 1;
     }
@@ -134,6 +141,9 @@ StatusOr<std::vector<int>> ComputeTopoOrder(const Graph& graph) {
 }
 
 Status PrepareGraphStructure(Graph& graph) {
+  // LEARNER: Always clear first so a failed re-prepare never leaves a stale
+  // order that looks successful to Session.
+  graph.topo_order.clear();
   EDUORT_RETURN_IF_ERROR(ValidateStructure(graph));
   EDUORT_ASSIGN_OR_RETURN(graph.topo_order, ComputeTopoOrder(graph));
   return Status::OK();
