@@ -55,7 +55,7 @@ X, W (seeds) ──► Add1 ──► T ──► Add2 ──► Y
 topo_order: [Add1, Add2]
 ```
 
-Result is stored in `Graph::topo_order` as **indices** into `Graph::nodes`.
+Result is stored in `Graph::topo_order` as **`size_t` indices** into `Graph::nodes`.
 
 ## API
 

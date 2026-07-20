@@ -178,14 +178,14 @@ TEST(TopoSortTest, OrdersProducerBeforeConsumer) {
   Status st = PrepareGraphStructure(g);
   ASSERT_TRUE(st.ok()) << st.ToString();
   ASSERT_EQ(g.topo_order.size(), 2u);
-  EXPECT_EQ(g.nodes[static_cast<std::size_t>(g.topo_order[0])].name, "add1");
-  EXPECT_EQ(g.nodes[static_cast<std::size_t>(g.topo_order[1])].name, "add2");
+  EXPECT_EQ(g.nodes[g.topo_order[0]].name, "add1");
+  EXPECT_EQ(g.nodes[g.topo_order[1]].name, "add2");
 }
 
 TEST(TopoSortTest, EmptyGraph) {
   Graph g;
   g.opset_version = 13;
-  StatusOr<std::vector<int>> order = ComputeTopoOrder(g);
+  StatusOr<std::vector<std::size_t>> order = ComputeTopoOrder(g);
   ASSERT_TRUE(order.ok());
   EXPECT_TRUE(order->empty());
 }
@@ -203,7 +203,7 @@ TEST(TopoSortTest, CycleDetected) {
   b.outputs = {"T2"};
   Graph g = MakeNodeGraph({a, b}, /*inputs=*/{}, /*outputs=*/{"T1"});
   ASSERT_TRUE(ValidateStructure(g).ok()) << ValidateStructure(g).ToString();
-  StatusOr<std::vector<int>> order = ComputeTopoOrder(g);
+  StatusOr<std::vector<std::size_t>> order = ComputeTopoOrder(g);
   ASSERT_FALSE(order.ok());
   EXPECT_EQ(order.status().code(), ErrorCode::kModelLoad);
   EXPECT_NE(order.status().message().find("cycle"), std::string::npos);
@@ -221,13 +221,13 @@ TEST(TopoSortTest, IndependentNodesAnyOrder) {
   b.inputs = {"X"};
   b.outputs = {"Y2"};
   Graph g = MakeNodeGraph({a, b}, {"X"}, {"Y1", "Y2"});
-  StatusOr<std::vector<int>> order = ComputeTopoOrder(g);
+  StatusOr<std::vector<std::size_t>> order = ComputeTopoOrder(g);
   ASSERT_TRUE(order.ok()) << order.status().ToString();
   ASSERT_EQ(order->size(), 2u);
-  std::vector<int> sorted = *order;
+  std::vector<std::size_t> sorted = *order;
   std::sort(sorted.begin(), sorted.end());
-  EXPECT_EQ(sorted[0], 0);
-  EXPECT_EQ(sorted[1], 1);
+  EXPECT_EQ(sorted[0], 0u);
+  EXPECT_EQ(sorted[1], 1u);
 }
 
 TEST(TopoSortTest, SelfLoopFails) {
@@ -236,12 +236,11 @@ TEST(TopoSortTest, SelfLoopFails) {
   n.op_type = "Identity";
   n.inputs = {"Y"};
   n.outputs = {"Y"};
-  // Not a seed redefinition if Y is only node output — but self-loop on Y.
-  // First ValidateStructure: Y is only defined as node output, input Y is defined.
-  // Wait - input Y is defined as its own output, so ValidateStructure OK.
+  // LEARNER: Y is only a node output (not a seed), so ValidateStructure is OK;
+  // Kahn still rejects the A→A self-loop on value Y.
   Graph g = MakeNodeGraph({n}, /*inputs=*/{}, /*outputs=*/{"Y"});
   ASSERT_TRUE(ValidateStructure(g).ok()) << ValidateStructure(g).ToString();
-  StatusOr<std::vector<int>> order = ComputeTopoOrder(g);
+  StatusOr<std::vector<std::size_t>> order = ComputeTopoOrder(g);
   ASSERT_FALSE(order.ok());
   EXPECT_EQ(order.status().code(), ErrorCode::kModelLoad);
   EXPECT_NE(order.status().message().find("self-loop"), std::string::npos);
@@ -260,11 +259,11 @@ TEST(TopoSortTest, MultiInputSameProducerCountedOnce) {
   b.inputs = {"T", "T"};
   b.outputs = {"Y"};
   Graph g = MakeNodeGraph({a, b}, {"X"}, {"Y"});
-  StatusOr<std::vector<int>> order = ComputeTopoOrder(g);
+  StatusOr<std::vector<std::size_t>> order = ComputeTopoOrder(g);
   ASSERT_TRUE(order.ok()) << order.status().ToString();
   ASSERT_EQ(order->size(), 2u);
-  EXPECT_EQ(order->at(0), 0);  // A first
-  EXPECT_EQ(order->at(1), 1);  // B second
+  EXPECT_EQ(order->at(0), 0u);  // A first
+  EXPECT_EQ(order->at(1), 1u);  // B second
 }
 
 TEST(TopoSortTest, StandaloneSsaEnforced) {
@@ -278,7 +277,7 @@ TEST(TopoSortTest, StandaloneSsaEnforced) {
   b.inputs = {"X"};
   b.outputs = {"Y"};
   Graph g = MakeNodeGraph({a, b}, {"X"}, {"Y"});
-  StatusOr<std::vector<int>> order = ComputeTopoOrder(g);
+  StatusOr<std::vector<std::size_t>> order = ComputeTopoOrder(g);
   ASSERT_FALSE(order.ok());
   EXPECT_EQ(order.status().code(), ErrorCode::kModelLoad);
   EXPECT_NE(order.status().message().find("multiple nodes"), std::string::npos);
@@ -290,10 +289,8 @@ TEST(PrepareGraphTest, ConstIdentity) {
   Graph g = std::move(g_or).value();
   ASSERT_TRUE(PrepareGraphStructure(g).ok());
   ASSERT_EQ(g.topo_order.size(), 2u);
-  EXPECT_EQ(g.nodes[static_cast<std::size_t>(g.topo_order[0])].op_type,
-            "Constant");
-  EXPECT_EQ(g.nodes[static_cast<std::size_t>(g.topo_order[1])].op_type,
-            "Identity");
+  EXPECT_EQ(g.nodes[g.topo_order[0]].op_type, "Constant");
+  EXPECT_EQ(g.nodes[g.topo_order[1]].op_type, "Identity");
 }
 
 TEST(PrepareGraphTest, ClearsStaleTopoOrderOnFailure) {

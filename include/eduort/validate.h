@@ -19,6 +19,7 @@ namespace eduort {
 // Passes when:
 //   - Every non-empty node input name is defined (graph input, initializer,
 //     or some node's output)
+//   - No node output redefines a seed (graph input or initializer)
 //   - Each value name is produced by at most one node (SSA-style)
 //   - Graph input / output / initializer names are non-empty where required
 //

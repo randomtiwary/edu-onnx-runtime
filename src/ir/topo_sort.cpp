@@ -9,6 +9,9 @@
 //
 // Edges come from *values*: if node A produces "T" and node B consumes "T",
 // there is an edge A → B (A must run first).
+//
+// Node indices use std::size_t to match vector::size() / operator[] without
+// repeated casts.
 
 #include "eduort/topo_sort.h"
 
@@ -26,12 +29,11 @@ namespace {
 
 // Build producer map: value name → node index that defines it.
 // Enforces SSA (duplicate outputs → error) so standalone ComputeTopoOrder is safe.
-StatusOr<std::unordered_map<std::string, int>> BuildProducerMap(
+StatusOr<std::unordered_map<std::string, std::size_t>> BuildProducerMap(
     const Graph& graph) {
-  std::unordered_map<std::string, int> producer;
-  for (int ni = 0; ni < static_cast<int>(graph.nodes.size()); ++ni) {
-    for (const std::string& out :
-         graph.nodes[static_cast<std::size_t>(ni)].outputs) {
+  std::unordered_map<std::string, std::size_t> producer;
+  for (std::size_t ni = 0; ni < graph.nodes.size(); ++ni) {
+    for (const std::string& out : graph.nodes[ni].outputs) {
       if (out.empty()) {
         continue;  // empty outputs: ValidateStructure rejects; skip here
       }
@@ -62,22 +64,22 @@ bool IsSeedValue(const Graph& graph, const std::string& name) {
 
 }  // namespace
 
-StatusOr<std::vector<int>> ComputeTopoOrder(const Graph& graph) {
-  const int n = static_cast<int>(graph.nodes.size());
+StatusOr<std::vector<std::size_t>> ComputeTopoOrder(const Graph& graph) {
+  const std::size_t n = graph.nodes.size();
   if (n == 0) {
-    return std::vector<int>{};
+    return std::vector<std::size_t>{};
   }
 
   EDUORT_ASSIGN_OR_RETURN(const auto producer, BuildProducerMap(graph));
 
   // adjacency[u] = list of nodes that depend on u (consumers).
-  std::vector<std::vector<int>> adj(static_cast<std::size_t>(n));
-  std::vector<int> indeg(static_cast<std::size_t>(n), 0);
+  std::vector<std::vector<std::size_t>> adj(n);
+  std::vector<std::size_t> indeg(n, 0);
 
-  for (int ni = 0; ni < n; ++ni) {
-    const Node& node = graph.nodes[static_cast<std::size_t>(ni)];
+  for (std::size_t ni = 0; ni < n; ++ni) {
+    const Node& node = graph.nodes[ni];
     // Unique predecessors so multi-input from same producer counts once.
-    std::unordered_set<int> seen_pred;
+    std::unordered_set<std::size_t> seen_pred;
     for (const std::string& in : node.inputs) {
       if (in.empty()) {
         continue;
@@ -91,7 +93,7 @@ StatusOr<std::vector<int>> ComputeTopoOrder(const Graph& graph) {
         }
         continue;
       }
-      const int pred = it->second;
+      const std::size_t pred = it->second;
       if (pred == ni) {
         return Status::Error(ErrorCode::kModelLoad,
                              "node '" + node.name + "' consumes its own output '" +
@@ -100,35 +102,35 @@ StatusOr<std::vector<int>> ComputeTopoOrder(const Graph& graph) {
       if (!seen_pred.insert(pred).second) {
         continue;  // already counted edge from this predecessor
       }
-      adj[static_cast<std::size_t>(pred)].push_back(ni);
-      indeg[static_cast<std::size_t>(ni)] += 1;
+      adj[pred].push_back(ni);
+      indeg[ni] += 1;
     }
   }
 
   // LEARNER: std::queue for the "ready set" — any order among ready nodes is a
   // valid topo order; we use FIFO for determinism.
-  std::queue<int> ready;
-  for (int i = 0; i < n; ++i) {
-    if (indeg[static_cast<std::size_t>(i)] == 0) {
+  std::queue<std::size_t> ready;
+  for (std::size_t i = 0; i < n; ++i) {
+    if (indeg[i] == 0) {
       ready.push(i);
     }
   }
 
-  std::vector<int> order;
-  order.reserve(static_cast<std::size_t>(n));
+  std::vector<std::size_t> order;
+  order.reserve(n);
   while (!ready.empty()) {
-    const int u = ready.front();
+    const std::size_t u = ready.front();
     ready.pop();
     order.push_back(u);
-    for (int v : adj[static_cast<std::size_t>(u)]) {
-      indeg[static_cast<std::size_t>(v)] -= 1;
-      if (indeg[static_cast<std::size_t>(v)] == 0) {
+    for (const std::size_t v : adj[u]) {
+      indeg[v] -= 1;
+      if (indeg[v] == 0) {
         ready.push(v);
       }
     }
   }
 
-  if (static_cast<int>(order.size()) != n) {
+  if (order.size() != n) {
     // LEARNER: leftover nodes with indeg > 0 participate in a cycle.
     return Status::Error(
         ErrorCode::kModelLoad,

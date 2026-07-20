@@ -21,7 +21,7 @@ namespace eduort {
 // non-seed inputs and self-loops. Prefer PrepareGraphStructure for Session.
 //
 // On cycle, SSA violation, or missing producer → ErrorCode::kModelLoad.
-StatusOr<std::vector<int>> ComputeTopoOrder(const Graph& graph);
+StatusOr<std::vector<std::size_t>> ComputeTopoOrder(const Graph& graph);
 
 // ValidateStructure + ComputeTopoOrder, then store result in graph.topo_order.
 // Clears topo_order first so a failed prepare never leaves a stale order.

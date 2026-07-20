@@ -45,10 +45,10 @@ Status ValidateStructure(const Graph& graph) {
   }
 
   // LEARNER: ONNX values are single-assignment — at most one producer per name.
-  std::unordered_map<std::string, int> producer;  // value → node index
+  std::unordered_map<std::string, std::size_t> producer;  // value → node index
 
-  for (int ni = 0; ni < static_cast<int>(graph.nodes.size()); ++ni) {
-    const Node& node = graph.nodes[static_cast<std::size_t>(ni)];
+  for (std::size_t ni = 0; ni < graph.nodes.size(); ++ni) {
+    const Node& node = graph.nodes[ni];
     if (node.op_type.empty()) {
       return Status::Error(ErrorCode::kModelLoad,
                            "node at index " + std::to_string(ni) +
@@ -84,8 +84,7 @@ Status ValidateStructure(const Graph& graph) {
   }
 
   // Every non-empty node input must be defined somewhere.
-  for (int ni = 0; ni < static_cast<int>(graph.nodes.size()); ++ni) {
-    const Node& node = graph.nodes[static_cast<std::size_t>(ni)];
+  for (const Node& node : graph.nodes) {
     for (const std::string& in : node.inputs) {
       // LEARNER: empty string means "optional input omitted" (e.g. Gemm C).
       if (in.empty()) {
