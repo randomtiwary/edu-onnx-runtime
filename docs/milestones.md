@@ -16,8 +16,8 @@ Full design: [design.md](design.md). This page is the **learner-facing** checkli
 | M1 | PR2 | Errors (`Status`/`StatusOr`), tensors, host memory | |
 | M2 | PR3a | Protobuf codegen; parse `ModelProto` | |
 | M3 | PR3b | Map ONNX → in-memory Graph IR | |
-| M4 | **PR4** | Structural validation + topological sort | |
-| M5 | PR5 | EP interface, kernel registry, CPU shell | |
+| M4 | PR4 | Structural validation + topological sort | |
+| M5 | **PR5** | EP interface, kernel registry, CPU shell | |
 | M6 | PR6 | Elementwise CPU kernels + broadcast | |
 | M7 | PR7 | MatMul / Gemm (naive) | |
 | M8 | PR8 | Reshape, Flatten, Softmax | |
@@ -34,8 +34,8 @@ Full design: [design.md](design.md). This page is the **learner-facing** checkli
 2. `feat: Status, StatusOr, Tensor, TensorShape, and host allocator` ✓
 3. `build: protobuf + onnx.proto generation and ModelProto smoke parse` (3a) ✓
 4. `feat: map ModelProto to Graph IR` (3b) ✓
-5. `feat: graph structural validation and topological sort` ← **this PR**
-6. `feat: execution provider interface, registry, and CPU provider shell`
+5. `feat: graph structural validation and topological sort` ✓
+6. `feat: execution provider interface, registry, and CPU provider shell` ← **this PR**
 7. `feat(cpu): elementwise kernels and shape_inference extension point`
 8. `feat(cpu): MatMul and Gemm kernels`
 9. `feat(cpu): Reshape, Flatten, Softmax`

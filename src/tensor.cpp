@@ -176,6 +176,43 @@ StatusOr<Tensor> Tensor::Create(DataType dt, TensorShape shape,
                 /*owns_data=*/true);
 }
 
+StatusOr<Tensor> Tensor::Create(DataType dt, TensorShape shape,
+                                IAllocator* allocator) {
+  if (allocator == nullptr) {
+    return Status::Error(ErrorCode::kInvalidArgument,
+                         "Tensor::Create: allocator is null");
+  }
+  if (SizeOfDataType(dt) == 0) {
+    return Status::Error(ErrorCode::kInvalidArgument,
+                         std::string("unsupported DataType in Tensor::Create: ") +
+                             DataTypeName(dt));
+  }
+  // LEARNER: MVP host-only. CUDA allocators arrive with the CUDA EP (PR10).
+  if (allocator->device() != DeviceKind::kCPU) {
+    return Status::Error(ErrorCode::kInvalidArgument,
+                         "Tensor::Create via allocator only supports CPU "
+                         "allocators until the CUDA EP lands");
+  }
+
+  EDUORT_RETURN_IF_ERROR(ValidateShape(shape));
+  EDUORT_ASSIGN_OR_RETURN(const std::size_t nbytes, ComputeNBytes(dt, shape));
+
+  void* ptr = nullptr;
+  if (nbytes > 0) {
+    ptr = allocator->Allocate(nbytes);
+    if (ptr == nullptr) {
+      return Status::Error(ErrorCode::kRuntime,
+                           std::string(allocator->Name()) +
+                               " failed to allocate " + std::to_string(nbytes) +
+                               " bytes");
+    }
+  }
+
+  BufferPtr buf = MakeAllocatedBuffer(ptr, allocator);
+  return Tensor(dt, std::move(shape), allocator->device(), std::move(buf),
+                nbytes, /*owns_data=*/true);
+}
+
 StatusOr<Tensor> Tensor::FromHostBlob(DataType dt, TensorShape shape,
                                       void* data, std::size_t bytes) {
   if (SizeOfDataType(dt) == 0) {

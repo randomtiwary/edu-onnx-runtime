@@ -90,8 +90,15 @@ class Tensor {
  public:
   // Allocate a new buffer on `device` (MVP: only kCPU is implemented).
   // Fails with kInvalidArgument for bad shape/dtype/device, kRuntime on OOM.
+  // Uses DefaultCpuAllocator() for host tensors.
   static StatusOr<Tensor> Create(DataType dt, TensorShape shape,
                                  DeviceKind device = DeviceKind::kCPU);
+
+  // Allocate via a specific allocator (EP path). Device is taken from alloc.
+  // LEARNER: OpKernelContext::Output must use this so kernels respect the EP
+  // memory contract (not always DefaultCpuAllocator).
+  static StatusOr<Tensor> Create(DataType dt, TensorShape shape,
+                                 IAllocator* allocator);
 
   // Wrap an existing host buffer **without taking ownership**.
   // LEARNER (FromHostBlob): the shared_ptr uses a no-op deleter. The caller

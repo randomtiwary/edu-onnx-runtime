@@ -42,8 +42,9 @@ VersionString() = 0.0.1
 | PR2 — tensors | done | `Status` / `StatusOr`, `Tensor`, host allocator, GoogleTest |
 | PR3a — protobuf smoke | done | `protoc` + `ModelProto` parse |
 | PR3b — Graph IR | done | Map `ModelProto` → `eduort::Graph` |
-| **PR4** — validate + topo | **you are here** | Structural checks + Kahn order |
-| PR5–8 | planned | registry, CPU kernels |
+| PR4 — validate + topo | done | Structural checks + Kahn order |
+| **PR5** — EP + registry | **you are here** | CPU EP, kernel registry, Identity |
+| PR6–8 | planned | more CPU kernels |
 | PR9a | planned | `Session::Create` / `Run` end-to-end on CPU → **v0.1.0** |
 | PR9b | planned | `eduort-run` CLI |
 | PR10–11 | planned | optional CUDA EP + mixed CPU/GPU graphs → **v0.2.0** |
@@ -61,8 +62,9 @@ VersionString() = 0.0.1
 3. Read [docs/02-what-is-onnx.md](docs/02-what-is-onnx.md) — ModelProto → Graph IR.
 4. Read [docs/03-tensors-and-memory.md](docs/03-tensors-and-memory.md) — Status, Tensor, ownership.
 5. Read [docs/04-graph-and-topo.md](docs/04-graph-and-topo.md) — validation + topo order.
-6. Skim [docs/design.md](docs/design.md) — architecture and PR plan.
-7. Follow [docs/comment-style.md](docs/comment-style.md) when reading or writing code (`LEARNER:` tags).
+6. Read [docs/05-kernels-and-registry.md](docs/05-kernels-and-registry.md) — kernels + registry.
+7. Skim [docs/design.md](docs/design.md) — architecture and PR plan.
+8. Follow [docs/comment-style.md](docs/comment-style.md) when reading or writing code (`LEARNER:` tags).
 
 ## Comment style
 
