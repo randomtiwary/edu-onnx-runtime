@@ -52,8 +52,8 @@ struct Node {
 struct Graph {
   std::string name;
   std::vector<Node> nodes;
-  // topo_order filled in PR4; empty until then.
-  std::vector<int> topo_order;
+  // topo_order filled in PR4; empty until then. Indices into nodes (size_t).
+  std::vector<std::size_t> topo_order;
 
   // LEARNER: initializers are constant tensors (weights/biases) embedded in
   // the model. Keys are value names used as node inputs.
